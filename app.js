@@ -100,7 +100,6 @@ const els = {
   birthInput: document.querySelector("#birthInput"),
   deathInput: document.querySelector("#deathInput"),
   placeInput: document.querySelector("#placeInput"),
-  branchInput: document.querySelector("#branchInput"),
   fatherInput: document.querySelector("#fatherInput"),
   motherInput: document.querySelector("#motherInput"),
   partnerInput: document.querySelector("#partnerInput"),
@@ -254,7 +253,7 @@ function renderList() {
   const query = els.searchInput.value.trim().toLowerCase();
   const visiblePeople = people
     .filter((person) => {
-      const haystack = [person.name, person.nickname, person.place, person.branch, person.notes]
+      const haystack = [person.name, person.nickname, person.place, person.notes]
         .join(" ")
         .toLowerCase();
       return haystack.includes(query);
@@ -278,7 +277,7 @@ function renderList() {
     card.classList.toggle("selected", person.id === selectedId);
     node.querySelector(".avatar").textContent = initials(person.name);
     node.querySelector(".person-name").textContent = person.name;
-    node.querySelector(".person-meta").textContent = `${formatYearRange(person)} · ${person.branch || "Sin rama"}`;
+    node.querySelector(".person-meta").textContent = `${formatYearRange(person)} · ${person.place || "Sin lugar"}`;
     button.addEventListener("click", () => {
       selectedId = person.id;
       currentView = "detail";
@@ -332,6 +331,9 @@ function renderTree() {
         const familyUnit = document.createElement("div");
         familyUnit.className = "family-unit";
         familyUnit.dataset.unit = unit.map((person) => person.id).join("-");
+        if (unit.length > 1) {
+          familyUnit.dataset.couple = getCoupleKey(unit[0].id, unit[1].id);
+        }
 
         unit.forEach((person, personIndex) => {
           if (personIndex > 0) {
@@ -378,6 +380,10 @@ function buildFamilyUnits(group) {
   return units;
 }
 
+function getCoupleKey(firstId, secondId) {
+  return [firstId, secondId].sort().join("--");
+}
+
 function createTreePerson(person) {
   const item = document.createElement("article");
   const partner = person.partnerId ? people.find((candidate) => candidate.id === person.partnerId) : null;
@@ -388,7 +394,7 @@ function createTreePerson(person) {
     <button type="button">
       <strong>${escapeHtml(person.name)}</strong>
       <small>${escapeHtml(formatYearRange(person))}</small>
-      <small>${escapeHtml(person.place || person.branch || "Sin lugar")}</small>
+      <small>${escapeHtml(person.place || "Sin lugar")}</small>
       ${partner ? `<small>Pareja: ${escapeHtml(partner.name)}</small>` : ""}
     </button>
   `;
@@ -411,21 +417,62 @@ function drawLines() {
   els.treeLines.replaceChildren();
 
   people.forEach((child) => {
-    [child.fatherId, child.motherId].filter(Boolean).forEach((parentId) => {
-      const parentNode = els.tree.querySelector(`[data-id="${CSS.escape(parentId)}"]`);
-      const childNode = els.tree.querySelector(`[data-id="${CSS.escape(child.id)}"]`);
-      if (!parentNode || !childNode) return;
+    const childNode = els.tree.querySelector(`[data-id="${CSS.escape(child.id)}"]`);
+    if (!childNode) return;
 
-      const parentBox = parentNode.getBoundingClientRect();
-      const childBox = childNode.getBoundingClientRect();
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", parentBox.left - panelBox.left + els.treePanel.scrollLeft + parentBox.width / 2);
-      line.setAttribute("y1", parentBox.bottom - panelBox.top + els.treePanel.scrollTop);
-      line.setAttribute("x2", childBox.left - panelBox.left + els.treePanel.scrollLeft + childBox.width / 2);
-      line.setAttribute("y2", childBox.top - panelBox.top + els.treePanel.scrollTop);
-      els.treeLines.append(line);
-    });
+    const childPoint = getTopCenter(childNode, panelBox);
+    const parentPoint = getParentLineOrigin(child, panelBox);
+    if (!parentPoint) return;
+
+    drawConnector(parentPoint, childPoint);
   });
+}
+
+function getParentLineOrigin(child, panelBox) {
+  if (child.fatherId && child.motherId) {
+    const coupleNode = els.tree.querySelector(
+      `[data-couple="${CSS.escape(getCoupleKey(child.fatherId, child.motherId))}"]`
+    );
+    const partnerLine = coupleNode?.querySelector(".partner-line");
+    if (partnerLine) return getCenter(partnerLine, panelBox);
+  }
+
+  const parentId = child.fatherId || child.motherId;
+  const parentNode = parentId ? els.tree.querySelector(`[data-id="${CSS.escape(parentId)}"]`) : null;
+  return parentNode ? getBottomCenter(parentNode, panelBox) : null;
+}
+
+function getTopCenter(node, panelBox) {
+  const box = node.getBoundingClientRect();
+  return {
+    x: box.left - panelBox.left + els.treePanel.scrollLeft + box.width / 2,
+    y: box.top - panelBox.top + els.treePanel.scrollTop
+  };
+}
+
+function getBottomCenter(node, panelBox) {
+  const box = node.getBoundingClientRect();
+  return {
+    x: box.left - panelBox.left + els.treePanel.scrollLeft + box.width / 2,
+    y: box.bottom - panelBox.top + els.treePanel.scrollTop
+  };
+}
+
+function getCenter(node, panelBox) {
+  const box = node.getBoundingClientRect();
+  return {
+    x: box.left - panelBox.left + els.treePanel.scrollLeft + box.width / 2,
+    y: box.top - panelBox.top + els.treePanel.scrollTop + box.height / 2
+  };
+}
+
+function drawConnector(from, to) {
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", from.x);
+  line.setAttribute("y1", from.y);
+  line.setAttribute("x2", to.x);
+  line.setAttribute("y2", to.y);
+  els.treeLines.append(line);
 }
 
 function renderForm() {
@@ -437,7 +484,6 @@ function renderForm() {
   els.birthInput.value = person?.birth || "";
   els.deathInput.value = person?.death || "";
   els.placeInput.value = person?.place || "";
-  els.branchInput.value = person?.branch || "";
   els.fatherInput.value = person?.fatherId || "";
   els.motherInput.value = person?.motherId || "";
   els.partnerInput.value = person?.partnerId || "";
@@ -472,7 +518,7 @@ function readForm() {
     birth: els.birthInput.value,
     death: els.deathInput.value,
     place: els.placeInput.value.trim(),
-    branch: els.branchInput.value.trim(),
+    branch: selectedPerson()?.branch || "",
     fatherId: els.fatherInput.value,
     motherId: els.motherInput.value,
     partnerId: els.partnerInput.value,

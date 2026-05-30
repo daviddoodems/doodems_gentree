@@ -92,8 +92,8 @@ function getDb(env) {
 }
 
 async function ensureSchema(db) {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS people (
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS people (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       nickname TEXT NOT NULL DEFAULT '',
@@ -106,8 +106,8 @@ async function ensureSchema(db) {
       partner_id TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+    )`
+  ).run();
   await addColumnIfMissing(db, "partner_id", "TEXT NOT NULL DEFAULT ''");
 }
 
@@ -116,7 +116,7 @@ async function addColumnIfMissing(db, columnName, definition) {
   const exists = results.some((column) => column.name === columnName);
   if (!exists) {
     try {
-      await db.exec(`ALTER TABLE people ADD COLUMN ${columnName} ${definition};`);
+      await db.prepare(`ALTER TABLE people ADD COLUMN ${columnName} ${definition}`).run();
     } catch (error) {
       if (!String(error.message || error).toLowerCase().includes("duplicate column")) {
         throw error;
