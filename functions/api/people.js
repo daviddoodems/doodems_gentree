@@ -1,6 +1,6 @@
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, X-Family-Write-Password"
 };
 
@@ -26,12 +26,8 @@ export async function onRequestGet({ env }) {
 
 export async function onRequestPut({ request, env }) {
   try {
-    if (env.FAMILY_WRITE_PASSWORD) {
-      const password = request.headers.get("X-Family-Write-Password") || "";
-      if (password !== env.FAMILY_WRITE_PASSWORD) {
-        return json({ error: "Contrasena incorrecta" }, 401);
-      }
-    }
+    const passwordError = checkWritePassword(request, env);
+    if (passwordError) return passwordError;
 
     let body;
     try {
@@ -45,35 +41,48 @@ export async function onRequestPut({ request, env }) {
 
     const db = getDb(env);
     await ensureSchema(db);
-    await db.prepare("DELETE FROM people").run();
+    if (body.replace === true) {
+      await db.prepare("DELETE FROM people").run();
+    }
 
     if (people.length) {
-      const statements = people.map((person) => {
-        const clean = normalizePerson(person);
-        return db.prepare(
-          `INSERT INTO people
-            (id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-        ).bind(
-          clean.id,
-          clean.name,
-          clean.nickname,
-          clean.birth,
-          clean.death,
-          clean.place,
-          clean.branch,
-          clean.fatherId,
-          clean.motherId,
-          clean.partnerId,
-          clean.notes
-        );
-      });
+      const statements = people.map((person) => upsertPersonStatement(db, person));
       await db.batch(statements);
     }
 
     return json({ ok: true, people });
   } catch (error) {
     return json({ error: "No pude guardar en la base de datos", detail: String(error.message || error) }, 500);
+  }
+}
+
+export async function onRequestDelete({ request, env }) {
+  try {
+    const passwordError = checkWritePassword(request, env);
+    if (passwordError) return passwordError;
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "JSON no valido" }, 400);
+    }
+
+    const id = String(body.id || "");
+    if (!id) return json({ error: "Falta el id de la persona" }, 400);
+
+    const db = getDb(env);
+    await ensureSchema(db);
+    await db.batch([
+      db.prepare("DELETE FROM people WHERE id = ?").bind(id),
+      db.prepare("UPDATE people SET father_id = '' WHERE father_id = ?").bind(id),
+      db.prepare("UPDATE people SET mother_id = '' WHERE mother_id = ?").bind(id),
+      db.prepare("UPDATE people SET partner_id = '' WHERE partner_id = ?").bind(id)
+    ]);
+
+    return json({ ok: true, deletedId: id });
+  } catch (error) {
+    return json({ error: "No pude eliminar de la base de datos", detail: String(error.message || error) }, 500);
   }
 }
 
@@ -89,6 +98,46 @@ function getDb(env) {
     throw new Error("Falta el binding D1 llamado DB en Cloudflare Pages.");
   }
   return env.DB;
+}
+
+function checkWritePassword(request, env) {
+  if (!env.FAMILY_WRITE_PASSWORD) return null;
+  const password = request.headers.get("X-Family-Write-Password") || "";
+  if (password === env.FAMILY_WRITE_PASSWORD) return null;
+  return json({ error: "Contrasena incorrecta" }, 401);
+}
+
+function upsertPersonStatement(db, person) {
+  const clean = normalizePerson(person);
+  return db.prepare(
+    `INSERT INTO people
+      (id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      nickname = excluded.nickname,
+      birth = excluded.birth,
+      death = excluded.death,
+      place = excluded.place,
+      branch = excluded.branch,
+      father_id = excluded.father_id,
+      mother_id = excluded.mother_id,
+      partner_id = excluded.partner_id,
+      notes = excluded.notes,
+      updated_at = datetime('now')`
+  ).bind(
+    clean.id,
+    clean.name,
+    clean.nickname,
+    clean.birth,
+    clean.death,
+    clean.place,
+    clean.branch,
+    clean.fatherId,
+    clean.motherId,
+    clean.partnerId,
+    clean.notes
+  );
 }
 
 async function ensureSchema(db) {

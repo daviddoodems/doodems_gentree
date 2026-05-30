@@ -138,7 +138,7 @@ async function loadPeople() {
   }
 }
 
-async function savePeople() {
+async function savePeople(options = {}) {
   if (!usingSharedData) {
     saveLocalPeople();
     setSyncStatus("Guardado en este navegador. Publica con D1 para compartirlo.");
@@ -152,7 +152,7 @@ async function savePeople() {
   let response = await fetch(API_URL, {
     method: "PUT",
     headers,
-    body: JSON.stringify({ people })
+    body: JSON.stringify({ people, replace: options.replace === true })
   });
 
   if (response.status === 401) {
@@ -168,7 +168,7 @@ async function savePeople() {
         "Content-Type": "application/json",
         "X-Family-Write-Password": typedPassword
       },
-      body: JSON.stringify({ people })
+      body: JSON.stringify({ people, replace: options.replace === true })
     });
   }
 
@@ -178,6 +178,49 @@ async function savePeople() {
   }
 
   setSyncStatus("Guardado en la base compartida.");
+  return true;
+}
+
+async function deletePersonFromSharedData(id) {
+  if (!usingSharedData) {
+    saveLocalPeople();
+    setSyncStatus("Eliminado en este navegador. Publica con D1 para compartirlo.");
+    return true;
+  }
+
+  const headers = { "Content-Type": "application/json" };
+  const password = sessionStorage.getItem(WRITE_PASSWORD_KEY);
+  if (password) headers["X-Family-Write-Password"] = password;
+
+  let response = await fetch(API_URL, {
+    method: "DELETE",
+    headers,
+    body: JSON.stringify({ id })
+  });
+
+  if (response.status === 401) {
+    const typedPassword = window.prompt("Escribe la contrasena familiar para eliminar:");
+    if (!typedPassword) {
+      setSyncStatus("Cambio no guardado: falta la contrasena familiar.");
+      return false;
+    }
+    sessionStorage.setItem(WRITE_PASSWORD_KEY, typedPassword);
+    response = await fetch(API_URL, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Family-Write-Password": typedPassword
+      },
+      body: JSON.stringify({ id })
+    });
+  }
+
+  if (!response.ok) {
+    setSyncStatus("No pude eliminar en la base compartida. Intenta de nuevo.");
+    return false;
+  }
+
+  setSyncStatus("Eliminado en la base compartida.");
   return true;
 }
 
@@ -591,7 +634,7 @@ els.deleteBtn.addEventListener("click", async () => {
       partnerId: item.partnerId === person.id ? "" : item.partnerId
     }));
   selectedId = people[0]?.id || "";
-  const saved = await savePeople();
+  const saved = await deletePersonFromSharedData(person.id);
   if (!saved) {
     people = previousPeople;
     selectedId = person.id;
@@ -654,7 +697,7 @@ els.importInput.addEventListener("change", async (event) => {
       notes: person.notes || ""
     }));
     selectedId = people[0]?.id || "";
-    const saved = await savePeople();
+    const saved = await savePeople({ replace: true });
     if (!saved) {
       people = previousPeople;
       selectedId = people[0]?.id || "";
