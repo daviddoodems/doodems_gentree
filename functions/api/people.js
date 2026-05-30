@@ -9,62 +9,72 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestGet({ env }) {
-  await ensureSchema(env.DB);
-  const { results } = await env.DB.prepare(
-    `SELECT id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes
-     FROM people
-     ORDER BY name COLLATE NOCASE`
-  ).all();
+  try {
+    const db = getDb(env);
+    await ensureSchema(db);
+    const { results } = await db.prepare(
+      `SELECT *
+       FROM people
+       ORDER BY name COLLATE NOCASE`
+    ).all();
 
-  return json(results.map(fromRow));
+    return json(results.map(fromRow));
+  } catch (error) {
+    return json({ error: "No pude leer la base de datos", detail: String(error.message || error) }, 500);
+  }
 }
 
 export async function onRequestPut({ request, env }) {
-  if (env.FAMILY_WRITE_PASSWORD) {
-    const password = request.headers.get("X-Family-Write-Password") || "";
-    if (password !== env.FAMILY_WRITE_PASSWORD) {
-      return json({ error: "Contrasena incorrecta" }, 401);
-    }
-  }
-
-  let body;
   try {
-    body = await request.json();
-  } catch {
-    return json({ error: "JSON no valido" }, 400);
+    if (env.FAMILY_WRITE_PASSWORD) {
+      const password = request.headers.get("X-Family-Write-Password") || "";
+      if (password !== env.FAMILY_WRITE_PASSWORD) {
+        return json({ error: "Contrasena incorrecta" }, 401);
+      }
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "JSON no valido" }, 400);
+    }
+
+    const people = Array.isArray(body.people) ? body.people : null;
+    if (!people) return json({ error: "Formato no valido" }, 400);
+
+    const db = getDb(env);
+    await ensureSchema(db);
+    await db.prepare("DELETE FROM people").run();
+
+    if (people.length) {
+      const statements = people.map((person) => {
+        const clean = normalizePerson(person);
+        return db.prepare(
+          `INSERT INTO people
+            (id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+        ).bind(
+          clean.id,
+          clean.name,
+          clean.nickname,
+          clean.birth,
+          clean.death,
+          clean.place,
+          clean.branch,
+          clean.fatherId,
+          clean.motherId,
+          clean.partnerId,
+          clean.notes
+        );
+      });
+      await db.batch(statements);
+    }
+
+    return json({ ok: true, people });
+  } catch (error) {
+    return json({ error: "No pude guardar en la base de datos", detail: String(error.message || error) }, 500);
   }
-
-  const people = Array.isArray(body.people) ? body.people : null;
-  if (!people) return json({ error: "Formato no valido" }, 400);
-
-  await ensureSchema(env.DB);
-  await env.DB.prepare("DELETE FROM people").run();
-
-  if (people.length) {
-    const statements = people.map((person) => {
-      const clean = normalizePerson(person);
-      return env.DB.prepare(
-        `INSERT INTO people
-          (id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-      ).bind(
-        clean.id,
-        clean.name,
-        clean.nickname,
-        clean.birth,
-        clean.death,
-        clean.place,
-        clean.branch,
-        clean.fatherId,
-        clean.motherId,
-        clean.partnerId,
-        clean.notes
-      );
-    });
-    await env.DB.batch(statements);
-  }
-
-  return json({ ok: true, people });
 }
 
 function json(data, status = 200) {
@@ -72,6 +82,13 @@ function json(data, status = 200) {
     status,
     headers: CORS_HEADERS
   });
+}
+
+function getDb(env) {
+  if (!env.DB) {
+    throw new Error("Falta el binding D1 llamado DB en Cloudflare Pages.");
+  }
+  return env.DB;
 }
 
 async function ensureSchema(db) {
@@ -98,7 +115,13 @@ async function addColumnIfMissing(db, columnName, definition) {
   const { results } = await db.prepare("PRAGMA table_info(people)").all();
   const exists = results.some((column) => column.name === columnName);
   if (!exists) {
-    await db.exec(`ALTER TABLE people ADD COLUMN ${columnName} ${definition};`);
+    try {
+      await db.exec(`ALTER TABLE people ADD COLUMN ${columnName} ${definition};`);
+    } catch (error) {
+      if (!String(error.message || error).toLowerCase().includes("duplicate column")) {
+        throw error;
+      }
+    }
   }
 }
 
@@ -113,7 +136,7 @@ function fromRow(row) {
     branch: row.branch,
     fatherId: row.father_id,
     motherId: row.mother_id,
-    partnerId: row.partner_id,
+    partnerId: row.partner_id || "",
     notes: row.notes
   };
 }
