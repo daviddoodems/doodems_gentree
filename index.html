@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Arbol familiar</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Personas">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">AF</div>
+          <div>
+            <h1>Arbol familiar</h1>
+            <p>Archivo vivo de la familia</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <button class="primary" id="addPersonBtn" type="button">Nueva persona</button>
+          <button id="printBtn" type="button" title="Imprimir">Imprimir</button>
+        </div>
+
+        <label class="field compact">
+          <span>Buscar</span>
+          <input id="searchInput" type="search" placeholder="Nombre, apellido, lugar...">
+        </label>
+
+        <div class="stats" aria-live="polite">
+          <div>
+            <strong id="peopleCount">0</strong>
+            <span>personas</span>
+          </div>
+          <div>
+            <strong id="generationCount">0</strong>
+            <span>generaciones</span>
+          </div>
+        </div>
+
+        <p class="sync-status" id="syncStatus" aria-live="polite">Conectando datos compartidos...</p>
+
+        <div class="list" id="peopleList"></div>
+
+        <div class="data-actions">
+          <button id="exportBtn" type="button">Exportar datos</button>
+          <label class="import-button">
+            Importar JSON
+            <input id="importInput" type="file" accept="application/json">
+          </label>
+          <button id="resetBtn" class="danger" type="button">Restaurar ejemplo</button>
+        </div>
+      </aside>
+
+      <section class="workspace" aria-label="Arbol genealogico">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Vista general</p>
+            <h2 id="treeTitle">Familia completa</h2>
+          </div>
+          <div class="view-switch" role="tablist" aria-label="Vista">
+            <button class="active" id="treeViewBtn" type="button">Arbol</button>
+            <button id="detailViewBtn" type="button">Ficha</button>
+          </div>
+        </header>
+
+        <section class="tree-panel" id="treePanel">
+          <svg class="tree-lines" id="treeLines" aria-hidden="true"></svg>
+          <div class="tree" id="tree"></div>
+        </section>
+
+        <section class="detail-panel hidden" id="detailPanel">
+          <form id="personForm" class="person-form">
+            <div class="form-header">
+              <div>
+                <p class="eyebrow">Ficha personal</p>
+                <h2 id="formTitle">Nueva persona</h2>
+              </div>
+              <button id="deleteBtn" class="danger ghost" type="button">Eliminar</button>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>Nombre completo</span>
+                <input id="nameInput" required autocomplete="name">
+              </label>
+              <label class="field">
+                <span>Apodo o nombre familiar</span>
+                <input id="nicknameInput">
+              </label>
+              <label class="field">
+                <span>Fecha de nacimiento</span>
+                <input id="birthInput" type="date">
+              </label>
+              <label class="field">
+                <span>Fecha de fallecimiento</span>
+                <input id="deathInput" type="date">
+              </label>
+              <label class="field">
+                <span>Lugar principal</span>
+                <input id="placeInput" placeholder="Ciudad, pais">
+              </label>
+              <label class="field">
+                <span>Rama familiar</span>
+                <input id="branchInput" placeholder="Materna, paterna...">
+              </label>
+              <label class="field">
+                <span>Padre</span>
+                <select id="fatherInput"></select>
+              </label>
+              <label class="field">
+                <span>Madre</span>
+                <select id="motherInput"></select>
+              </label>
+              <label class="field full">
+                <span>Notas</span>
+                <textarea id="notesInput" rows="5" placeholder="Historias, fechas importantes, recuerdos..."></textarea>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="primary" type="submit">Guardar ficha</button>
+              <button id="cancelEditBtn" type="button">Cancelar</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <template id="personCardTemplate">
+      <article class="person-card">
+        <button class="person-card-button" type="button">
+          <span class="avatar"></span>
+          <span>
+            <strong class="person-name"></strong>
+            <small class="person-meta"></small>
+          </span>
+        </button>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
