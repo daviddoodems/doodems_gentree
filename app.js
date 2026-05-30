@@ -253,12 +253,34 @@ function selectedPerson() {
 
 function getGenerations() {
   const generationMap = calculateGenerations();
-  return people.reduce((groups, person) => {
+  return visibleTreePeople().reduce((groups, person) => {
     const generation = generationMap.get(person.id) || 0;
     groups[generation] = groups[generation] || [];
     groups[generation].push(person);
     return groups;
   }, []);
+}
+
+function visibleTreePeople() {
+  return people.filter((person) => shouldShowInTree(person));
+}
+
+function shouldShowInTree(person) {
+  if (person.id === selectedId) return true;
+  const selected = selectedPerson();
+  if (selected?.partnerId === person.id) return true;
+  if (person.partnerId === selectedId) return true;
+  return !isExternalPartner(person);
+}
+
+function isExternalPartner(person) {
+  const partner = person.partnerId ? people.find((candidate) => candidate.id === person.partnerId) : null;
+  if (!partner) return false;
+  return !hasParentLinks(person) && hasParentLinks(partner);
+}
+
+function hasParentLinks(person) {
+  return Boolean(person.fatherId || person.motherId);
 }
 
 function calculateGenerations() {
@@ -383,11 +405,12 @@ function renderSelects() {
 
 function renderTree() {
   const generations = getGenerations();
+  const visiblePeople = visibleTreePeople();
   els.tree.replaceChildren();
   els.treeLines.replaceChildren();
   els.treeTitle.textContent = selectedPerson()?.name || "Familia completa";
 
-  if (!people.length) {
+  if (!visiblePeople.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
     empty.textContent = "Agrega la primera persona para empezar el arbol.";
@@ -491,7 +514,7 @@ function drawLines() {
   els.treeLines.setAttribute("height", height);
   els.treeLines.replaceChildren();
 
-  people.forEach((child) => {
+  visibleTreePeople().forEach((child) => {
     const childNode = els.tree.querySelector(`[data-id="${CSS.escape(child.id)}"]`);
     if (!childNode) return;
 
@@ -512,7 +535,9 @@ function getParentLineOrigin(child, panelBox) {
     if (partnerLine) return getCenter(partnerLine, panelBox);
   }
 
-  const parentId = child.fatherId || child.motherId;
+  const parentId = [child.fatherId, child.motherId].find((id) => {
+    return id && els.tree.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  });
   const parentNode = parentId ? els.tree.querySelector(`[data-id="${CSS.escape(parentId)}"]`) : null;
   return parentNode ? getBottomCenter(parentNode, panelBox) : null;
 }
