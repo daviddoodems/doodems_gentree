@@ -85,7 +85,6 @@ const els = {
   syncStatus: document.querySelector("#syncStatus"),
   exportBtn: document.querySelector("#exportBtn"),
   importInput: document.querySelector("#importInput"),
-  resetBtn: document.querySelector("#resetBtn"),
   treeTitle: document.querySelector("#treeTitle"),
   treeViewBtn: document.querySelector("#treeViewBtn"),
   detailViewBtn: document.querySelector("#detailViewBtn"),
@@ -620,23 +619,6 @@ els.importInput.addEventListener("change", async (event) => {
   } finally {
     event.target.value = "";
   }
-});
-
-els.resetBtn.addEventListener("click", async () => {
-  const confirmed = window.confirm("Restaurar los datos de ejemplo? Esto reemplaza los datos actuales del arbol.");
-  if (!confirmed) return;
-  const previousPeople = structuredClone(people);
-  people = structuredClone(examplePeople);
-  selectedId = people[0]?.id || "";
-  const saved = await savePeople();
-  if (!saved) {
-    people = previousPeople;
-    selectedId = people[0]?.id || "";
-    render();
-    return;
-  }
-  currentView = "tree";
-  render();
 });
 
 window.addEventListener("resize", drawLines);
