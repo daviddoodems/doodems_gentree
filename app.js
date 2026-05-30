@@ -251,31 +251,63 @@ function selectedPerson() {
   return people.find((person) => person.id === selectedId) || null;
 }
 
-function generationFor(person, cache = new Map(), seen = new Set()) {
+function getGenerations() {
+  const generationMap = calculateGenerations();
+  return people.reduce((groups, person) => {
+    const generation = generationMap.get(person.id) || 0;
+    groups[generation] = groups[generation] || [];
+    groups[generation].push(person);
+    return groups;
+  }, []);
+}
+
+function calculateGenerations() {
+  const byId = new Map(people.map((person) => [person.id, person]));
+  const generations = new Map();
+
+  people.forEach((person) => {
+    generations.set(person.id, generationFromParents(person, byId, generations, new Set()));
+  });
+
+  let changed = true;
+  let passes = 0;
+  while (changed && passes < people.length) {
+    changed = false;
+    passes += 1;
+    people.forEach((person) => {
+      if (!person.partnerId || !byId.has(person.partnerId)) return;
+      const current = generations.get(person.id) || 0;
+      const partner = generations.get(person.partnerId) || 0;
+      const shared = Math.max(current, partner);
+      if (current !== shared) {
+        generations.set(person.id, shared);
+        changed = true;
+      }
+      if (partner !== shared) {
+        generations.set(person.partnerId, shared);
+        changed = true;
+      }
+    });
+  }
+
+  return generations;
+}
+
+function generationFromParents(person, byId, cache, seen) {
   if (cache.has(person.id)) return cache.get(person.id);
   if (seen.has(person.id)) return 0;
   seen.add(person.id);
 
   const parents = [person.fatherId, person.motherId]
-    .map((id) => people.find((candidate) => candidate.id === id))
+    .map((id) => byId.get(id))
     .filter(Boolean);
 
   const generation = parents.length
-    ? Math.max(...parents.map((parent) => generationFor(parent, cache, new Set(seen)))) + 1
+    ? Math.max(...parents.map((parent) => generationFromParents(parent, byId, cache, new Set(seen)))) + 1
     : 0;
 
   cache.set(person.id, generation);
   return generation;
-}
-
-function getGenerations() {
-  const cache = new Map();
-  return people.reduce((groups, person) => {
-    const generation = generationFor(person, cache);
-    groups[generation] = groups[generation] || [];
-    groups[generation].push(person);
-    return groups;
-  }, []);
 }
 
 function render() {
