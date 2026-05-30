@@ -11,7 +11,7 @@ export async function onRequestOptions() {
 export async function onRequestGet({ env }) {
   await ensureSchema(env.DB);
   const { results } = await env.DB.prepare(
-    `SELECT id, name, nickname, birth, death, place, branch, father_id, mother_id, notes
+    `SELECT id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes
      FROM people
      ORDER BY name COLLATE NOCASE`
   ).all();
@@ -45,8 +45,8 @@ export async function onRequestPut({ request, env }) {
       const clean = normalizePerson(person);
       return env.DB.prepare(
         `INSERT INTO people
-          (id, name, nickname, birth, death, place, branch, father_id, mother_id, notes, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+          (id, name, nickname, birth, death, place, branch, father_id, mother_id, partner_id, notes, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
       ).bind(
         clean.id,
         clean.name,
@@ -57,6 +57,7 @@ export async function onRequestPut({ request, env }) {
         clean.branch,
         clean.fatherId,
         clean.motherId,
+        clean.partnerId,
         clean.notes
       );
     });
@@ -85,10 +86,20 @@ async function ensureSchema(db) {
       branch TEXT NOT NULL DEFAULT '',
       father_id TEXT NOT NULL DEFAULT '',
       mother_id TEXT NOT NULL DEFAULT '',
+      partner_id TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  await addColumnIfMissing(db, "partner_id", "TEXT NOT NULL DEFAULT ''");
+}
+
+async function addColumnIfMissing(db, columnName, definition) {
+  const { results } = await db.prepare("PRAGMA table_info(people)").all();
+  const exists = results.some((column) => column.name === columnName);
+  if (!exists) {
+    await db.exec(`ALTER TABLE people ADD COLUMN ${columnName} ${definition};`);
+  }
 }
 
 function fromRow(row) {
@@ -102,6 +113,7 @@ function fromRow(row) {
     branch: row.branch,
     fatherId: row.father_id,
     motherId: row.mother_id,
+    partnerId: row.partner_id,
     notes: row.notes
   };
 }
@@ -117,6 +129,7 @@ function normalizePerson(person) {
     branch: String(person.branch || "").trim(),
     fatherId: String(person.fatherId || ""),
     motherId: String(person.motherId || ""),
+    partnerId: String(person.partnerId || ""),
     notes: String(person.notes || "").trim()
   };
 }

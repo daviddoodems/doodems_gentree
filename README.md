@@ -10,6 +10,7 @@ Funciones incluidas:
 
 - Crear, editar y eliminar personas.
 - Asignar padre y madre.
+- Asignar pareja o conyuge.
 - Buscar personas.
 - Ver el arbol por generaciones.
 - Exportar e importar los datos como JSON.
@@ -20,6 +21,7 @@ Funciones incluidas:
 - `index.html`, `styles.css`, `app.js`: la web.
 - `functions/api/people.js`: la API compartida.
 - `schema.sql`: estructura de la base de datos.
+- `migrations/0002_partner_id.sql`: actualizacion para guardar parejas en bases ya existentes.
 - `wrangler.toml`: configuracion de Cloudflare.
 
 ## Publicar en Cloudflare
@@ -44,3 +46,13 @@ La lectura queda abierta para la familia. Para proteger la escritura, crea una v
 - Valor: la contrasena familiar que quieras usar
 
 Cuando alguien intente guardar cambios, la app pedira esa contrasena.
+
+## Actualizar una base existente
+
+Si la base ya existia antes de agregar parejas, ejecuta esta consulta una vez en la consola SQL de D1:
+
+```sql
+ALTER TABLE people ADD COLUMN partner_id TEXT NOT NULL DEFAULT '';
+```
+
+La API tambien intenta crear esta columna automaticamente si falta.

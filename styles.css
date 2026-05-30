@@ -330,6 +330,12 @@ h1 {
   gap: 18px;
 }
 
+.family-unit {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
 .tree-person {
   width: 210px;
   min-height: 112px;
@@ -370,6 +376,14 @@ h1 {
 .tree-person.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(29, 124, 102, 0.16);
+}
+
+.partner-line {
+  align-self: center;
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(185, 128, 43, 0.72);
 }
 
 .tree-lines {

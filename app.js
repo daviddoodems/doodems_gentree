@@ -13,6 +13,7 @@ const examplePeople = [
     branch: "Paterna",
     fatherId: "",
     motherId: "",
+    partnerId: "p2",
     notes: "Primer registro de ejemplo. Puedes editarlo o eliminarlo."
   },
   {
@@ -25,6 +26,7 @@ const examplePeople = [
     branch: "Paterna",
     fatherId: "",
     motherId: "",
+    partnerId: "p1",
     notes: ""
   },
   {
@@ -37,6 +39,7 @@ const examplePeople = [
     branch: "Paterna",
     fatherId: "p1",
     motherId: "p2",
+    partnerId: "p4",
     notes: ""
   },
   {
@@ -49,6 +52,7 @@ const examplePeople = [
     branch: "Materna",
     fatherId: "",
     motherId: "",
+    partnerId: "p3",
     notes: ""
   },
   {
@@ -61,6 +65,7 @@ const examplePeople = [
     branch: "Nueva generacion",
     fatherId: "p3",
     motherId: "p4",
+    partnerId: "",
     notes: ""
   }
 ];
@@ -99,6 +104,7 @@ const els = {
   branchInput: document.querySelector("#branchInput"),
   fatherInput: document.querySelector("#fatherInput"),
   motherInput: document.querySelector("#motherInput"),
+  partnerInput: document.querySelector("#partnerInput"),
   notesInput: document.querySelector("#notesInput"),
   cancelEditBtn: document.querySelector("#cancelEditBtn"),
   template: document.querySelector("#personCardTemplate")
@@ -296,8 +302,10 @@ function renderSelects() {
 
   els.fatherInput.innerHTML = options;
   els.motherInput.innerHTML = options;
+  els.partnerInput.innerHTML = options;
   els.fatherInput.value = current?.fatherId || "";
   els.motherInput.value = current?.motherId || "";
+  els.partnerInput.value = current?.partnerId || "";
 }
 
 function renderTree() {
@@ -320,32 +328,77 @@ function renderTree() {
     generation.className = "generation";
     generation.dataset.generation = index;
 
-    group
-      .sort((a, b) => a.name.localeCompare(b.name, "es"))
-      .forEach((person) => {
-        const item = document.createElement("article");
-        item.className = "tree-person";
-        item.dataset.id = person.id;
-        item.classList.toggle("selected", person.id === selectedId);
-        item.innerHTML = `
-          <button type="button">
-            <strong>${escapeHtml(person.name)}</strong>
-            <small>${escapeHtml(formatYearRange(person))}</small>
-            <small>${escapeHtml(person.place || person.branch || "Sin lugar")}</small>
-          </button>
-        `;
-        item.querySelector("button").addEventListener("click", () => {
-          selectedId = person.id;
-          currentView = "detail";
-          render();
+    buildFamilyUnits(group)
+      .forEach((unit) => {
+        const familyUnit = document.createElement("div");
+        familyUnit.className = "family-unit";
+        familyUnit.dataset.unit = unit.map((person) => person.id).join("-");
+
+        unit.forEach((person, personIndex) => {
+          if (personIndex > 0) {
+            const partnerLine = document.createElement("span");
+            partnerLine.className = "partner-line";
+            familyUnit.append(partnerLine);
+          }
+          familyUnit.append(createTreePerson(person));
         });
-        generation.append(item);
+
+        generation.append(familyUnit);
       });
 
     els.tree.append(generation);
   });
 
   requestAnimationFrame(drawLines);
+}
+
+function buildFamilyUnits(group) {
+  const byId = new Map(people.map((person) => [person.id, person]));
+  const groupIds = new Set(group.map((person) => person.id));
+  const used = new Set();
+  const units = [];
+
+  group
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    .forEach((person) => {
+      if (used.has(person.id)) return;
+
+      const partner = person.partnerId ? byId.get(person.partnerId) : null;
+      if (partner && groupIds.has(partner.id) && !used.has(partner.id)) {
+        units.push([person, partner].sort((a, b) => a.name.localeCompare(b.name, "es")));
+        used.add(person.id);
+        used.add(partner.id);
+        return;
+      }
+
+      units.push([person]);
+      used.add(person.id);
+    });
+
+  return units;
+}
+
+function createTreePerson(person) {
+  const item = document.createElement("article");
+  const partner = person.partnerId ? people.find((candidate) => candidate.id === person.partnerId) : null;
+  item.className = "tree-person";
+  item.dataset.id = person.id;
+  item.classList.toggle("selected", person.id === selectedId);
+  item.innerHTML = `
+    <button type="button">
+      <strong>${escapeHtml(person.name)}</strong>
+      <small>${escapeHtml(formatYearRange(person))}</small>
+      <small>${escapeHtml(person.place || person.branch || "Sin lugar")}</small>
+      ${partner ? `<small>Pareja: ${escapeHtml(partner.name)}</small>` : ""}
+    </button>
+  `;
+  item.querySelector("button").addEventListener("click", () => {
+    selectedId = person.id;
+    currentView = "detail";
+    render();
+  });
+  return item;
 }
 
 function drawLines() {
@@ -388,6 +441,7 @@ function renderForm() {
   els.branchInput.value = person?.branch || "";
   els.fatherInput.value = person?.fatherId || "";
   els.motherInput.value = person?.motherId || "";
+  els.partnerInput.value = person?.partnerId || "";
   els.notesInput.value = person?.notes || "";
 }
 
@@ -422,8 +476,26 @@ function readForm() {
     branch: els.branchInput.value.trim(),
     fatherId: els.fatherInput.value,
     motherId: els.motherInput.value,
+    partnerId: els.partnerInput.value,
     notes: els.notesInput.value.trim()
   };
+}
+
+function syncPartnerLinks(person) {
+  const partnerId = person.partnerId;
+  people = people.map((item) => {
+    if (item.id === person.id) return item;
+    if (item.partnerId === person.id && item.id !== partnerId) {
+      return { ...item, partnerId: "" };
+    }
+    if (partnerId && item.partnerId === partnerId && item.id !== person.id) {
+      return { ...item, partnerId: "" };
+    }
+    if (partnerId && item.id === partnerId) {
+      return { ...item, partnerId: person.id };
+    }
+    return item;
+  });
 }
 
 els.addPersonBtn.addEventListener("click", () => {
@@ -445,6 +517,7 @@ els.personForm.addEventListener("submit", async (event) => {
   } else {
     people.push(person);
   }
+  syncPartnerLinks(person);
   selectedId = person.id;
   const saved = await savePeople();
   if (!saved) {
@@ -469,7 +542,8 @@ els.deleteBtn.addEventListener("click", async () => {
     .map((item) => ({
       ...item,
       fatherId: item.fatherId === person.id ? "" : item.fatherId,
-      motherId: item.motherId === person.id ? "" : item.motherId
+      motherId: item.motherId === person.id ? "" : item.motherId,
+      partnerId: item.partnerId === person.id ? "" : item.partnerId
     }));
   selectedId = people[0]?.id || "";
   const saved = await savePeople();
@@ -531,6 +605,7 @@ els.importInput.addEventListener("change", async (event) => {
       branch: person.branch || "",
       fatherId: person.fatherId || "",
       motherId: person.motherId || "",
+      partnerId: person.partnerId || "",
       notes: person.notes || ""
     }));
     selectedId = people[0]?.id || "";
