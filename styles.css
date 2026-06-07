@@ -309,7 +309,9 @@ h1 {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 253, 248, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 250, 247, 0.86)),
+    repeating-linear-gradient(90deg, rgba(216, 222, 214, 0.28) 0 1px, transparent 1px 80px);
   box-shadow: var(--shadow);
 }
 
@@ -319,9 +321,9 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 58px;
+  gap: 64px;
   min-width: max-content;
-  padding: 34px;
+  padding: 38px;
 }
 
 .generation {
@@ -329,33 +331,36 @@ h1 {
   flex-wrap: nowrap;
   justify-content: center;
   align-items: stretch;
-  gap: 18px;
+  gap: 20px;
   min-width: 100%;
+  padding: 10px 0;
 }
 
 .family-unit {
   display: flex;
   align-items: stretch;
   flex: 0 0 auto;
-  gap: 10px;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 8px;
 }
 
 .tree-person {
-  width: clamp(164px, 14vw, 210px);
-  min-height: 112px;
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--accent);
-  border-radius: 8px;
+  width: clamp(168px, 13vw, 198px);
+  min-height: 104px;
+  border: 1px solid #cfd8d2;
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
   background: white;
-  box-shadow: 0 10px 28px rgba(32, 38, 33, 0.08);
-  padding: 13px;
+  box-shadow: 0 8px 20px rgba(32, 38, 33, 0.09);
+  padding: 12px;
 }
 
 .tree-person button {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 82px;
+  min-height: 76px;
   border: 0;
   background: transparent;
   padding: 0;
@@ -368,27 +373,30 @@ h1 {
 }
 
 .tree-person strong {
-  margin-bottom: 7px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 800;
   line-height: 1.22;
   overflow-wrap: anywhere;
 }
 
 .tree-person small {
   color: var(--muted);
+  font-size: 12px;
   line-height: 1.35;
 }
 
 .tree-person.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(29, 124, 102, 0.16);
+  box-shadow: 0 0 0 4px rgba(29, 124, 102, 0.16), 0 12px 26px rgba(32, 38, 33, 0.12);
 }
 
 .partner-line {
   align-self: center;
-  width: 22px;
+  width: 18px;
   height: 2px;
   border-radius: 999px;
-  background: rgba(185, 128, 43, 0.72);
+  background: rgba(71, 83, 78, 0.5);
 }
 
 .tree-lines {
@@ -403,10 +411,10 @@ h1 {
 
 .tree-lines path {
   fill: none;
-  stroke: rgba(57, 88, 78, 0.48);
+  stroke: rgba(55, 79, 72, 0.62);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.25;
+  stroke-width: 2;
 }
 
 .detail-panel {

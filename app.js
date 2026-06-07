@@ -532,8 +532,7 @@ function getParentLineOrigin(child, panelBox) {
     const coupleNode = els.tree.querySelector(
       `[data-couple="${CSS.escape(getCoupleKey(child.fatherId, child.motherId))}"]`
     );
-    const partnerLine = coupleNode?.querySelector(".partner-line");
-    if (partnerLine) return getCenter(partnerLine, panelBox);
+    if (coupleNode) return getBottomCenter(coupleNode, panelBox);
   }
 
   const parentId = [child.fatherId, child.motherId].find((id) => {
@@ -568,7 +567,8 @@ function getCenter(node, panelBox) {
 }
 
 function drawConnector(from, to) {
-  const midY = Math.max(from.y + 28, from.y + (to.y - from.y) / 2);
+  const verticalGap = Math.max(40, to.y - from.y);
+  const midY = from.y + Math.min(Math.max(verticalGap * 0.45, 30), 64);
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${to.y}`);
   els.treeLines.append(path);
