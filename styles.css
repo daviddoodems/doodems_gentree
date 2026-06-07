@@ -396,12 +396,17 @@ h1 {
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 0;
+  overflow: visible;
   pointer-events: none;
 }
 
-.tree-lines line {
-  stroke: rgba(101, 113, 107, 0.34);
-  stroke-width: 2;
+.tree-lines path {
+  fill: none;
+  stroke: rgba(57, 88, 78, 0.48);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
 }
 
 .detail-panel {
@@ -461,6 +466,105 @@ h1 {
   .tree-panel,
   .detail-panel {
     min-height: 70vh;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    background: var(--bg);
+  }
+
+  .sidebar {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  .toolbar,
+  .view-switch,
+  .form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .toolbar .primary,
+  .form-actions .primary {
+    grid-column: 1 / -1;
+  }
+
+  .list {
+    max-height: 240px;
+    min-height: 120px;
+  }
+
+  .workspace {
+    padding: 12px;
+  }
+
+  .topbar {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .tree-panel,
+  .detail-panel {
+    border-radius: 0;
+    min-height: 72vh;
+  }
+
+  .tree {
+    gap: 44px;
+    padding: 22px 18px 34px;
+  }
+
+  .generation {
+    gap: 12px;
+  }
+
+  .family-unit {
+    gap: 7px;
+  }
+
+  .tree-person {
+    width: 148px;
+    min-height: 104px;
+    padding: 10px;
+  }
+
+  .tree-person button {
+    min-height: 76px;
+  }
+
+  .tree-person strong {
+    font-size: 14px;
+  }
+
+  .tree-person small {
+    font-size: 12px;
+  }
+
+  .partner-line {
+    width: 14px;
+  }
+
+  .detail-panel {
+    padding: 16px;
+  }
+
+  .data-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .data-actions button {
+    width: 100%;
   }
 }
 

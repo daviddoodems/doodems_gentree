@@ -15,7 +15,7 @@ export async function onRequestGet({ env }) {
     const { results } = await db.prepare(
       `SELECT *
        FROM people
-       ORDER BY name COLLATE NOCASE`
+       ORDER BY rowid`
     ).all();
 
     return json(results.map(fromRow));

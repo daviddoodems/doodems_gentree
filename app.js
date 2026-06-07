@@ -459,13 +459,12 @@ function buildFamilyUnits(group) {
 
   group
     .slice()
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .forEach((person) => {
       if (used.has(person.id)) return;
 
       const partner = person.partnerId ? byId.get(person.partnerId) : null;
       if (partner && groupIds.has(partner.id) && !used.has(partner.id)) {
-        units.push([person, partner].sort((a, b) => a.name.localeCompare(b.name, "es")));
+        units.push([person, partner]);
         used.add(person.id);
         used.add(partner.id);
         return;
@@ -512,6 +511,8 @@ function drawLines() {
   els.treeLines.setAttribute("viewBox", `0 0 ${width} ${height}`);
   els.treeLines.setAttribute("width", width);
   els.treeLines.setAttribute("height", height);
+  els.treeLines.style.width = `${width}px`;
+  els.treeLines.style.height = `${height}px`;
   els.treeLines.replaceChildren();
 
   visibleTreePeople().forEach((child) => {
@@ -567,12 +568,10 @@ function getCenter(node, panelBox) {
 }
 
 function drawConnector(from, to) {
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", from.x);
-  line.setAttribute("y1", from.y);
-  line.setAttribute("x2", to.x);
-  line.setAttribute("y2", to.y);
-  els.treeLines.append(line);
+  const midY = Math.max(from.y + 28, from.y + (to.y - from.y) / 2);
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${to.y}`);
+  els.treeLines.append(path);
 }
 
 function renderForm() {
