@@ -86,6 +86,7 @@ const els = {
   exportBtn: document.querySelector("#exportBtn"),
   importInput: document.querySelector("#importInput"),
   treeTitle: document.querySelector("#treeTitle"),
+  homeViewBtn: document.querySelector("#homeViewBtn"),
   treeViewBtn: document.querySelector("#treeViewBtn"),
   detailViewBtn: document.querySelector("#detailViewBtn"),
   treePanel: document.querySelector("#treePanel"),
@@ -128,12 +129,12 @@ async function loadPeople() {
     if (!response.ok) throw new Error("No shared API");
     people = await response.json();
     usingSharedData = true;
-    selectedId = people[0]?.id || "";
+    selectedId = "";
     setSyncStatus("Datos compartidos activos. Los cambios se veran en otros dispositivos.");
   } catch {
     people = loadLocalPeople();
     usingSharedData = false;
-    selectedId = people[0]?.id || "";
+    selectedId = "";
     setSyncStatus("Modo local: al publicar en Cloudflare con D1, todos veran el mismo arbol.");
   }
 }
@@ -262,15 +263,40 @@ function getGenerations() {
 }
 
 function visibleTreePeople() {
-  return people.filter((person) => shouldShowInTree(person));
+  const visibleIds = selectedId ? focusedVisibleIds(selectedId) : initialVisibleIds();
+  return people.filter((person) => visibleIds.has(person.id));
 }
 
-function shouldShowInTree(person) {
-  if (person.id === selectedId) return true;
-  const selected = selectedPerson();
-  if (selected?.partnerId === person.id) return true;
-  if (person.partnerId === selectedId) return true;
-  return !isExternalPartner(person);
+function initialVisibleIds() {
+  const generationMap = calculateGenerations();
+  const rootIds = people
+    .filter((person) => (generationMap.get(person.id) || 0) === 0 && !isExternalPartner(person))
+    .map((person) => person.id);
+  const visible = new Set(rootIds);
+
+  people.forEach((person) => {
+    if (rootIds.includes(person.fatherId) || rootIds.includes(person.motherId)) {
+      visible.add(person.id);
+    }
+  });
+
+  return visible;
+}
+
+function focusedVisibleIds(focusId) {
+  const focus = people.find((person) => person.id === focusId);
+  if (!focus) return initialVisibleIds();
+
+  const visible = new Set([focus.id]);
+  [focus.fatherId, focus.motherId, focus.partnerId].filter(Boolean).forEach((id) => visible.add(id));
+
+  people.forEach((person) => {
+    if (person.fatherId === focus.id || person.motherId === focus.id) {
+      visible.add(person.id);
+    }
+  });
+
+  return visible;
 }
 
 function isExternalPartner(person) {
@@ -408,7 +434,9 @@ function renderTree() {
   const visiblePeople = visibleTreePeople();
   els.tree.replaceChildren();
   els.treeLines.replaceChildren();
-  els.treeTitle.textContent = selectedPerson()?.name || "Familia completa";
+  els.treeTitle.textContent = selectedPerson()
+    ? `${selectedPerson().name}: padres e hijos`
+    : "Primera generación";
 
   if (!visiblePeople.length) {
     const empty = document.createElement("p");
@@ -449,6 +477,7 @@ function renderTree() {
   });
 
   requestAnimationFrame(drawLines);
+  requestAnimationFrame(centerFocusedCard);
 }
 
 function buildFamilyUnits(group) {
@@ -497,10 +526,17 @@ function createTreePerson(person) {
   `;
   item.querySelector("button").addEventListener("click", () => {
     selectedId = person.id;
-    currentView = "detail";
+    currentView = "tree";
     render();
   });
   return item;
+}
+
+function centerFocusedCard() {
+  if (!selectedId) return;
+  const node = els.tree.querySelector(`[data-id="${CSS.escape(selectedId)}"]`);
+  if (!node) return;
+  node.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
 }
 
 function drawLines() {
@@ -595,6 +631,7 @@ function renderView() {
   els.detailPanel.classList.toggle("hidden", isTree);
   els.treeViewBtn.classList.toggle("active", isTree);
   els.detailViewBtn.classList.toggle("active", !isTree);
+  els.homeViewBtn.classList.toggle("active", isTree && !selectedId);
 }
 
 function escapeHtml(value) {
@@ -707,6 +744,12 @@ els.cancelEditBtn.addEventListener("click", () => {
 });
 
 els.searchInput.addEventListener("input", renderList);
+
+els.homeViewBtn.addEventListener("click", () => {
+  selectedId = "";
+  currentView = "tree";
+  render();
+});
 
 els.treeViewBtn.addEventListener("click", () => {
   currentView = "tree";
